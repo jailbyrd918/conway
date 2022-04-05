@@ -26,6 +26,8 @@ void event_proc_input
 				break;
 
 			case SDL_KEYDOWN:
+				// handle key press event on editor side
+				event_on_key_pressed_editor_handle();
 
 				switch (event_system.event.key.keysym.sym) {
 					case SDLK_ESCAPE:
@@ -44,6 +46,8 @@ void event_proc_input
 				break;
 
 			case SDL_KEYUP:
+				// handle key release event on editor side
+				event_on_key_released_editor_handle();
 
 				// reset pressed key
 				event_system.pressed_key = (SDL_Scancode)(0x00);
@@ -53,6 +57,9 @@ void event_proc_input
 			case SDL_MOUSEBUTTONDOWN:
 				// record mouse state
 				event_system.mouse.state = SDL_GetMouseState(NULL, NULL);
+
+				// handle mouse click event on editor side
+				event_on_mouse_clicked_editor_handle();
 
 				break;
 
@@ -71,6 +78,8 @@ void event_proc_input
 				// record mouse scroll y value
 				event_system.mouse.scroll_y = event_system.event.wheel.y;
 
+				// handle mouse scroll event on editor side
+				event_on_mouse_scrolled_editor_handle();
 				break;
 
 			default:

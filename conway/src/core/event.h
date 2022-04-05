@@ -57,6 +57,20 @@ bool event_mouse_right_clicked
 void event_on_exit_program_handle
 (void);
 
+
+void event_on_mouse_clicked_editor_handle
+(void);
+
+void event_on_mouse_scrolled_editor_handle
+(void);
+
+void event_on_key_pressed_editor_handle
+(void);
+
+void event_on_key_released_editor_handle
+(void);
+
+
 ////////////////////////////////////////////////////////////////////
 
 

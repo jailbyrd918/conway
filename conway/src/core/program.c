@@ -5,8 +5,12 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
+#include "utils/str.h"
+#include "utils/font.h"
 #include "graphics/graphics.h"
+#include "graphics/text.h"
 #include "event.h"
+#include "editor.h"
 
 #include "program.h"
 
@@ -45,6 +49,8 @@ static void _program_update
 (void)
 {
 	_program_update_delta_time();
+
+	editor_update(program.delta_time);
 }
 
 static void _program_render
@@ -52,7 +58,7 @@ static void _program_render
 {
 	graphics_clear_screen(ASSIGN_COLOR_RGB(0x00, 0x00, 0x00));
 
-
+	editor_draw();
 
 	graphics_render();
 }
@@ -88,7 +94,11 @@ void program_init
 	program.delta_time = 0.f;
 	program.active = statusok;
 
+	font_init_list();
+	font_load_from_file("webly_sleek", "./resrc/fonts/weblysleekui_light.ttf", 16);
+
 	event_init_system();
+	editor_init();
 
 }
 

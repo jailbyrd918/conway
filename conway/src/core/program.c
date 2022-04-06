@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -9,6 +10,7 @@
 #include "utils/font.h"
 #include "graphics/graphics.h"
 #include "graphics/text.h"
+#include "world/world.h"
 #include "event.h"
 #include "editor.h"
 
@@ -51,6 +53,7 @@ static void _program_update
 	_program_update_delta_time();
 
 	editor_update(program.delta_time);
+	world_update(editor.state & STATE_PLAYING);
 }
 
 static void _program_render
@@ -88,7 +91,7 @@ void program_init
 
 	// -- initialize program properties and components -- //
 
-	program.frames_per_sec = 120;
+	program.frames_per_sec = UINT_MAX;
 	program.frame_duration = 1000 / program.frames_per_sec;
 	program.old_tick = 0;
 	program.delta_time = 0.f;
@@ -98,6 +101,7 @@ void program_init
 	font_load_from_file("webly_sleek", "./resrc/fonts/weblysleekui_light.ttf", 16);
 
 	event_init_system();
+	world_init(150, 150);
 	editor_init();
 
 }
@@ -118,6 +122,7 @@ void program_quit
 {
 	// -- free engine properties and components -- //
 
+	world_free();
 	graphics_free();
 
 	TTF_Quit();	// shut down TTF engine

@@ -27,6 +27,9 @@ bool text_free
 bool text_set_message
 (text_t *text, const char *message);
 
+bool text_set_color
+(text_t *text, const SDL_Color color);
+
 bool text_draw
 (text_t *text, const int x, const int y);
 

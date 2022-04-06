@@ -30,6 +30,13 @@ struct s_editor {
 
 	float	scale, offset_x, offset_y;
 
+	enum e_state {
+		STATE_PAUSED,
+		STATE_PLAYING,
+		STATES
+	}
+	state;
+
 }
 editor;
 

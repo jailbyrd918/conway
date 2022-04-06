@@ -49,6 +49,16 @@ bool text_set_message
 	return true;
 }
 
+bool text_set_color
+(text_t *text, const SDL_Color color)
+{
+	if (!text)
+		return false;
+
+	text->color = color;
+	return true;
+}
+
 bool text_draw
 (text_t *text, const int x, const int y)
 {

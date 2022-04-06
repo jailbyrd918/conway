@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -10,6 +11,7 @@
 #include "utils/calc.h"
 #include "graphics/graphics.h"
 #include "graphics/text.h"
+#include "world/world.h"
 #include "event.h"
 
 #include "editor.h"
@@ -21,6 +23,21 @@ static float	cursor_world_x = 0.f, cursor_world_y = 0.f;
 static float	editor_delta_time = 0.f;
 
 
+// -- world cell manipulating functions -- /////////////////////////////////////////////
+
+static bool _editor_place_cell
+(void)
+{
+	int	cellx = (int)floorf(cursor_world_x / editor.grid.size),
+		celly = (int)floorf(cursor_world_y / editor.grid.size);
+
+	cellx = CLAMP(cellx, 0, world.cols - 1);
+	celly = CLAMP(celly, 0, world.rows - 1);
+
+	return world_set_cell(cellx, celly);
+}
+
+
 // -- event handers -- /////////////////////////////////////////////////////////////////
 
 void event_on_mouse_clicked_editor_handle
@@ -28,6 +45,9 @@ void event_on_mouse_clicked_editor_handle
 {
 	editor.cursor.start_x = editor.cursor.pos_x;
 	editor.cursor.start_y = editor.cursor.pos_y;
+
+	if (event_mouse_left_clicked())
+		_editor_place_cell();
 }
 
 void event_on_mouse_scrolled_editor_handle
@@ -61,6 +81,15 @@ void event_on_key_pressed_editor_handle
 {
 	switch (event_system.event.key.keysym.sym) {
 		case SDLK_p:
+			editor.state = (editor.state == STATE_PAUSED) ? STATE_PLAYING : STATE_PAUSED;
+			break;
+
+		case SDLK_r:
+			world_randomize_cells();
+			break;
+
+		case SDLK_c:
+			world_clear_cells();
 			break;
 
 		case SDLK_d:
@@ -117,10 +146,60 @@ static void _editor_draw_grid
 	}
 }
 
+static void _editor_draw_cells
+(void)
+{
+	for (int cellcol = 0; cellcol < world.cols; ++cellcol) {
+		for (int cellrow = 0; cellrow < world.rows; ++cellrow) {
+			float	cellx = (float)(cellcol * editor.grid.size),
+				celly = (float)(cellrow * editor.grid.size);
+			int8_t	cellstate = world.render_cells[cellrow * world.cols + cellcol];
+
+			float	cellstartwx = floorf(cellx / editor.grid.size) * editor.grid.size,
+				cellstartwy = floorf(celly / editor.grid.size) * editor.grid.size;
+			int	cellstartsx = calc_world_to_screen(cellstartwx, editor.offset_x, editor.scale),
+				cellstartsy = calc_world_to_screen(cellstartwy, editor.offset_y, editor.scale);
+
+			graphics_draw_rect(
+				cellstartsx,
+				cellstartsy,
+				(int)(EDITOR_SCALE_SIZE(editor.grid.size, editor.scale)),
+				(int)(EDITOR_SCALE_SIZE(editor.grid.size, editor.scale)),
+				true,
+				true,
+				(cellstate == 1) ? ASSIGN_COLOR_RGB(0x00, 0xff, 0x00) : ASSIGN_COLOR_RGB(0x00, 0x00, 0x00)
+			);
+		}
+	}
+
+}
+
+static void _editor_draw_suggest_drawing_cell
+(void)
+{
+	float	cellstartwx = floorf(cursor_world_x / editor.grid.size) * editor.grid.size,
+		cellstartwy = floorf(cursor_world_y / editor.grid.size) * editor.grid.size;
+
+	cellstartwx = CLAMP(cellstartwx, 0.f, (float)(editor.grid.size * editor.grid.cols) - editor.grid.size);
+	cellstartwy = CLAMP(cellstartwy, 0.f, (float)(editor.grid.size * editor.grid.rows) - editor.grid.size);
+
+	int	cellstartsx = calc_world_to_screen(cellstartwx, editor.offset_x, editor.scale),
+		cellstartsy = calc_world_to_screen(cellstartwy, editor.offset_y, editor.scale);
+
+	graphics_draw_rect(
+		cellstartsx,
+		cellstartsy,
+		(int)(EDITOR_SCALE_SIZE(editor.grid.size, editor.scale)),
+		(int)(EDITOR_SCALE_SIZE(editor.grid.size, editor.scale)),
+		true,
+		true,
+		ASSIGN_COLOR_RGB(0xcd, 0x7f, 0x32)
+	);
+}
+
 static void _editor_draw_cursor
 (void)
 {
-
 	// draw vertical line
 	graphics_draw_line_fp(
 		(float)editor.cursor.pos_x,
@@ -138,13 +217,12 @@ static void _editor_draw_cursor
 		(float)editor.cursor.pos_y,
 		ASSIGN_COLOR_RGB(0xff, 0xff, 0xff)
 	);
-
 }
 
 static void _editor_draw_info
 (void)
 {
-	// -- log draw frame rate -- //
+	// -- draw frame rate -- //
 
 	text_t *fpstxt = text_new("", "webly_sleek", ASSIGN_COLOR_RGB(0xff, 0xff, 0xff));
 	int fps = (int)(1.f / editor_delta_time);
@@ -155,35 +233,42 @@ static void _editor_draw_info
 	text_free(fpstxt);
 
 
-	//// -- log draw player info -- //
+	// -- draw state info -- //
 
-	//text_t *playertxt = text_new("", "webly_sleek_14", ASSIGN_COLOR_RGB(0x00, 0xff, 0x00));
-	//char coordmsg[128];
-	//sprintf(coordmsg, "Player: [x: %g, y: %g], angle: %d, sector: %d", player.pos_x, player.pos_y, (int)RAD_TO_DEG(player.yaw), player_get_current_sector());
-	//text_set_message(playertxt, coordmsg);
-	//text_draw(playertxt, 50, 40);
-	//text_free(playertxt);
+	text_t *statetxt = text_new("", "webly_sleek", ASSIGN_COLOR_RGB(0xff, 0xff, 0xff));
 
+	switch (editor.state) {
+		case STATE_PAUSED:
+			text_set_message(statetxt, "State: Paused");
+			text_set_color(statetxt, ASSIGN_COLOR_RGB(0xff, 0x00, 0x00));
+			break;
 
-	//// -- log draw map infos -- //
+		case STATE_PLAYING:
+			text_set_message(statetxt, "State: Playing");
+			text_set_color(statetxt, ASSIGN_COLOR_RGB(0x00, 0xff, 0x00));
+			break;
 
-	//// -- walls -- //
+		default:
+			break;
+	}
 
-	//text_t *wallstxt = text_new("", "webly_sleek_14", ASSIGN_COLOR_RGB(0xff, 0xff, 0xff));
-	//char wallsmsg[128];
-	//sprintf(wallsmsg, "Walls: %d / %d", currmap->num_walls, MAX_NUM_WALLS);
-	//text_set_message(wallstxt, wallsmsg);
-	//text_draw(wallstxt, 50, 60);
-	//text_free(wallstxt);
+	text_draw(statetxt, 50, 40);
+	text_free(statetxt);
+	
+	
+	// -- draw cell info -- //
 
-	//// -- sectors -- //
+	text_t *celltxt = text_new("", "webly_sleek", ASSIGN_COLOR_RGB(0xff, 0xff, 0xff));
+	char cellmsg[64];
 
-	//text_t *sectstxt = text_new("", "webly_sleek_14", ASSIGN_COLOR_RGB(0xff, 0xff, 0xff));
-	//char sectsmsg[128];
-	//sprintf(sectsmsg, "Sectors: %d / %d", currmap->num_sectors, MAX_NUM_SECTORS);
-	//text_set_message(sectstxt, sectsmsg);
-	//text_draw(sectstxt, 50, 80);
-	//text_free(sectstxt);
+	int cellnum = 0;
+	for (int i = 0; i < world.cols * world.rows; ++i)
+		cellnum += world.buf_cells[i];
+	
+	sprintf(cellmsg, "Cells: %d", cellnum);
+	text_set_message(celltxt, cellmsg);
+	text_draw(celltxt, 50, 60);
+	text_free(celltxt);
 
 }
 
@@ -196,8 +281,8 @@ void editor_init
 	// -- initialize editor components and properties -- //
 
 	editor.grid.size = 64;
-	editor.grid.cols = 1024;
-	editor.grid.rows = 1024;
+	editor.grid.cols = world.cols;
+	editor.grid.rows = world.rows;
 
 	editor.scale = 1.f;
 	editor.offset_x = (editor.grid.size * editor.grid.cols) / 2.f;
@@ -213,9 +298,10 @@ void editor_init
 	editor.cursor.pos_y = event_system.mouse.pos_y;
 	editor.cursor.size = 10;
 
+	editor.state = STATE_PAUSED;
+
 	// disable default cursor - replace with custom cursor
 	SDL_ShowCursor(false);
-
 }
 
 void editor_update
@@ -225,6 +311,19 @@ void editor_update
 
 	editor.cursor.pos_x = event_system.mouse.pos_x;
 	editor.cursor.pos_y = event_system.mouse.pos_y;
+
+
+	// -- record cursor world space position -- //
+
+	float	cursorwx = calc_screen_to_world(editor.cursor.pos_x, editor.offset_x, editor.scale),
+		cursorwy = calc_screen_to_world(editor.cursor.pos_y, editor.offset_y, editor.scale);
+
+	cursor_world_x = cursorwx;
+	cursor_world_y = cursorwy;
+
+
+	// update editor private delta time property
+	editor_delta_time = delta_time;
 
 
 	// -- calculate cursor world space position before zoom -- //
@@ -246,26 +345,13 @@ void editor_update
 
 	}
 
-
-	// -- determine draw/potential wall position -- //
-
-	float	cursorwx = calc_screen_to_world(editor.cursor.pos_x, editor.offset_x, editor.scale),
-		cursorwy = calc_screen_to_world(editor.cursor.pos_y, editor.offset_y, editor.scale);
-
-	cursor_world_x = cursorwx;
-	cursor_world_y = cursorwy;
-
-
-	// update editor private delta time property
-	editor_delta_time = delta_time;
-
 }
-
-
 
 void editor_draw
 (void)
 {
+	_editor_draw_cells();
+	_editor_draw_suggest_drawing_cell();
 	_editor_draw_grid();
 
 	_editor_draw_cursor();

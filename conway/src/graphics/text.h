@@ -16,6 +16,14 @@ typedef struct s_text_type {
 }
 text_t;
 
+typedef enum e_text_alignment_type {
+	TEXT_ALIGN_LEFT,
+	TEXT_ALIGN_CENTER,
+	TEXT_ALIGN_RIGHT,
+	TEXT_ALIGN_MODES
+}
+text_align_t;
+
 
 text_t *text_new
 (const char *message, const char *font_id, const SDL_Color color);
@@ -32,6 +40,9 @@ bool text_set_color
 
 bool text_draw
 (text_t *text, const int x, const int y);
+
+bool text_draw_aligned
+(text_t *text, const int y, const int x_padding, const text_align_t text_align);
 
 
 

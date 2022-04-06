@@ -1,11 +1,7 @@
-#include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <time.h>
-
-#include <SDL.h>
 
 #include "world.h"
 
@@ -20,32 +16,51 @@ bool world_init
 	world.rows = world_rows;
 
 	world.buf_cells = malloc(sizeof(int8_t) * (world_cols * world_rows));
-	for (int i = 0; i < (world_cols * world_rows); ++i)
-		world.buf_cells[i] = 0;
-
+	memset(world.buf_cells, 0, sizeof(int8_t) * (world_cols * world_rows));
 	world.render_cells = malloc(sizeof(int8_t) * (world_cols * world_rows));
+	world.generation = 0;
 
 	return true;
 }
 
+
+/* 
+	It is required that cellular automaton implemented in a simultaneous manner
+	
+	Such manner is achieved through a simple set of instructions in the context of this program:
+	- Copy the entire buffer cells data to the rendering cells
+		The rendering cells is treated as both the cells data to render and reference to old buffer cells
+	- Iterate through the rendering cells and determine state of buffer cells under the same cell index
+	- The entire buffer cells data is updated
+	- Render the rendering cells
+
+	On the other hand, avoidance of such manner will result in incorrect outputs
+		as state for every cell is being determined in their respective epoch of time
+*/
+
 bool world_update
 (const bool playing)
-{	
+{
 	memcpy(world.render_cells, world.buf_cells, sizeof(int8_t) * (world.cols * world.rows));
 
 	if (!playing)
 		return false;
 
-	for (int x = 1; x < world.cols - 1; ++x) {
-		for (int y = 1; y < world.rows - 1; ++y) {
-			int8_t	celln = world.render_cells[(y - 1) * world.cols + x],
-				cells = world.render_cells[(y + 1) * world.cols + x],
-				celle = world.render_cells[y * world.cols + (x + 1)],
-				cellw = world.render_cells[y * world.cols + (x - 1)],
-				cellnw = world.render_cells[(y - 1) * world.cols + (x - 1)],
-				cellne = world.render_cells[(y - 1) * world.cols + (x + 1)],
-				cellsw = world.render_cells[(y + 1) * world.cols + (x - 1)],
-				cellse = world.render_cells[(y + 1) * world.cols + (x + 1)];
+	for (int x = 0; x < world.cols; ++x) {
+		for (int y = 0; y < world.rows; ++y) {
+			bool	topmost = (y == 0),
+				bottommost = (y == world.rows - 1),
+				leftmost = (x == 0),
+				rightmost = (x == world.cols - 1);
+
+			int8_t	celln = topmost ? 0 : world.render_cells[(y - 1) * world.cols + x],
+				cells = bottommost ? 0 : world.render_cells[(y + 1) * world.cols + x],
+				celle = rightmost ? 0 : world.render_cells[y * world.cols + (x + 1)],
+				cellw = leftmost ? 0 : world.render_cells[y * world.cols + (x - 1)],
+				cellnw = (topmost || leftmost) ? 0 : world.render_cells[(y - 1) * world.cols + (x - 1)],
+				cellne = (topmost || rightmost) ? 0 : world.render_cells[(y - 1) * world.cols + (x + 1)],
+				cellsw = (bottommost || leftmost) ? 0 : world.render_cells[(y + 1) * world.cols + (x - 1)],
+				cellse = (bottommost || rightmost) ? 0 : world.render_cells[(y + 1) * world.cols + (x + 1)];
 
 			int	neighbornum = celln + cells + celle + cellw + cellnw + cellne + cellsw + cellse;
 
@@ -55,6 +70,8 @@ bool world_update
 				world.buf_cells[y * world.cols + x] = (neighbornum == 3);
 		}
 	}
+
+	world.generation++;
 
 	return true;
 }
@@ -84,5 +101,7 @@ void world_randomize_cells
 {
 	for (int i = 0; i < world.cols * world.rows; ++i)
 		world.buf_cells[i] = rand() % 2;
+
+	world.generation = 0;
 }
 

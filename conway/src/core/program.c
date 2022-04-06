@@ -101,7 +101,7 @@ void program_init
 	font_load_from_file("webly_sleek", "./resrc/fonts/weblysleekui_light.ttf", 16);
 
 	event_init_system();
-	world_init(150, 150);
+	world_init(200, 200);
 	editor_init();
 
 }

@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
@@ -21,6 +22,8 @@
 
 static float	cursor_world_x = 0.f, cursor_world_y = 0.f;
 static float	editor_delta_time = 0.f;
+
+static bool	show_instructions = false, show_info = true;
 
 
 // -- world cell manipulating functions -- /////////////////////////////////////////////
@@ -92,8 +95,12 @@ void event_on_key_pressed_editor_handle
 			world_clear_cells();
 			break;
 
-		case SDLK_d:
-			printf("debug");
+		case SDLK_i:
+			show_info = !show_info;
+			break;
+
+		case SDLK_F1:
+			show_instructions = !show_instructions;
 			break;
 
 		default:
@@ -219,9 +226,34 @@ static void _editor_draw_cursor
 	);
 }
 
-static void _editor_draw_info
+static bool _editor_draw_instructions
 (void)
 {
+	if (!show_instructions)
+		return false;
+
+	graphics_draw_rect(0, graphics.window_height - 30, graphics.window_width, 30, true, true, ASSIGN_COLOR_RGB(0x00, 0x00, 0x00));
+
+	text_t *helptxt = text_new("", "webly_sleek", ASSIGN_COLOR_RGB(0xbe, 0xbe, 0xbe));
+	char sep[] = "          ";
+	char str1[] = "< C > clear all cells";
+	char str2[] = "< R > reset and randomize all cells";
+	char str3[] = "< P > play / pause";
+	text_set_message(helptxt, str_combine_strs(5, str1, sep, str2, sep, str3));
+	int rpadding = 50;
+	int len = strlen(helptxt->msg);
+	text_draw_aligned(helptxt, graphics.window_height - 30, 50, TEXT_ALIGN_CENTER);
+	text_free(helptxt);
+
+	return true;
+}
+
+static bool _editor_draw_info
+(void)
+{
+	if (!show_info)
+		return false;
+
 	// -- draw frame rate -- //
 
 	text_t *fpstxt = text_new("", "webly_sleek", ASSIGN_COLOR_RGB(0xff, 0xff, 0xff));
@@ -229,7 +261,7 @@ static void _editor_draw_info
 	char fpsmsg[64];
 	sprintf(fpsmsg, "FPS: %d", fps);
 	text_set_message(fpstxt, fpsmsg);
-	text_draw(fpstxt, 50, 20);
+	text_draw(fpstxt, 50 , 20);
 	text_free(fpstxt);
 
 
@@ -270,6 +302,33 @@ static void _editor_draw_info
 	text_draw(celltxt, 50, 60);
 	text_free(celltxt);
 
+
+	// -- draw generation info -- //
+
+	text_t *gentxt = text_new("", "webly_sleek", ASSIGN_COLOR_RGB(0xff, 0xff, 0xff));
+	char genmsg[64];
+	sprintf(genmsg, "Generation: %llu", world.generation);
+	text_set_message(gentxt, genmsg);
+	text_draw(gentxt, 50, 80);
+	text_free(gentxt);
+	
+	
+	// -- draw help text -- //
+
+	text_t *helptxt = text_new("", "webly_sleek", ASSIGN_COLOR_RGB(0xbe, 0xbe, 0xbe));
+
+	text_set_message(helptxt, "< I > Hide infos");
+	text_draw(helptxt, 50, 110);
+	
+	text_set_message(helptxt, (!show_instructions) ? ("< F 1 > Show Instructions") : ("< F 1 > Hide Instructions"));
+	text_draw(helptxt, 50, 130);
+	
+	text_set_message(helptxt, "< Esc > Quit");
+	text_draw(helptxt, 50, 150);
+	
+	text_free(helptxt);
+
+	return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -354,6 +413,7 @@ void editor_draw
 	_editor_draw_suggest_drawing_cell();
 	_editor_draw_grid();
 
+	_editor_draw_instructions();
 	_editor_draw_cursor();
 	_editor_draw_info();
 

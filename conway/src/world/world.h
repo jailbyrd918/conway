@@ -9,9 +9,10 @@
 
 struct s_world {
 	
-	int8_t	*buf_cells, *render_cells;
+	int8_t		*buf_cells, *render_cells;
+	uint64_t	generation;
 
-	int	cols, rows;
+	int		cols, rows;
 
 }
 world;
